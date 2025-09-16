@@ -1,0 +1,189 @@
+plugins {
+	id "org.springframework.boot" version "3.5.5" apply false
+	id "io.spring.dependency-management" version "1.1.7" apply false
+	id "java"
+}
+
+group = "todo"
+version = "0.0.1-SNAPSHOT"
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(21)
+	}
+}
+
+repositories {
+	mavenCentral()
+	maven {url 'https://repo.spring.io/milestone'}
+}
+
+ext {
+	redisOmVersion = '0.9.10'
+	querydslVersion = '5.1.0'
+	jwtVersion = '0.12.6'
+	mapstructVersion = '1.6.3'
+	jacksonVersion = '2.19.1'
+	caffeineVersion = '3.2.1'
+	p6spyVersion = '1.11.0'
+	springdocVersion = '2.8.9'
+	ulidVersion = '5.2.3'
+
+	annotationVersion = '3.0.0'
+	persistenceVersion = '3.2.0'
+}
+
+configure(subprojects.findAll { it.name != 'apps' }) {
+	version = rootProject.version
+	apply plugin: 'java'
+	apply plugin: 'org.springframework.boot'
+	apply plugin: 'io.spring.dependency-management'
+
+	java {
+		toolchain {
+			languageVersion = JavaLanguageVersion.of(21)
+		}
+	}
+
+	repositories {
+		mavenCentral()
+		maven { url 'https://repo.spring.io/milestone' }
+	}
+
+	ext {
+		isMacOs = System.getProperty('os.name').toLowerCase().contains('mac')
+	}
+
+	dependencies {
+		implementation 'org.springframework.boot:spring-boot-starter-security'
+		implementation 'org.springframework.boot:spring-boot-starter-web'
+
+		compileOnly 'org.projectlombok:lombok'
+		runtimeOnly 'org.mariadb.jdbc:mariadb-java-client:3.5.3'
+		runtimeOnly 'mysql:mysql-connector-java:8.0.33'
+		annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+		annotationProcessor 'org.projectlombok:lombok'
+
+		/** Spring-Doc **/
+		implementation group: 'org.springdoc', name: 'springdoc-openapi-starter-webmvc-ui', version: "$springdocVersion"
+
+		/** AOP **/
+		implementation 'org.springframework.boot:spring-boot-starter-aop'
+
+		/** JWT **/
+		implementation group: 'io.jsonwebtoken', name: 'jjwt-api', version: "$jwtVersion"
+		runtimeOnly group: 'io.jsonwebtoken', name: 'jjwt-impl', version: "$jwtVersion"
+		runtimeOnly group: 'io.jsonwebtoken', name: 'jjwt-jackson', version: "$jwtVersion"
+
+		/** Spring-Security-Crypto **/
+		implementation 'org.springframework.security:spring-security-crypto'
+
+		/** Apache HttpClient for RestTemplate connection pooling **/
+		implementation 'org.apache.httpcomponents.client5:httpclient5'
+
+		/** REDIS **/
+		implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+		implementation 'redis.clients:jedis:5.1.0'
+
+		/** Reflections **/
+		implementation 'org.reflections:reflections:0.10.2'
+
+		/** Map Struct **/
+		implementation "org.mapstruct:mapstruct:$mapstructVersion"
+		annotationProcessor "org.mapstruct:mapstruct-processor:$mapstructVersion"
+		annotationProcessor "org.projectlombok:lombok-mapstruct-binding:0.2.0"
+
+		/** Jackson **/
+		implementation group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: "$jacksonVersion"
+		implementation group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: "$jacksonVersion"
+
+		/** Caffeine Cache **/
+		implementation group: 'com.github.ben-manes.caffeine', name: 'caffeine', version: "$caffeineVersion"
+
+		/** JPA **/
+		implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+
+		/** P6Spy **/
+		implementation "com.github.gavlyukovskiy:p6spy-spring-boot-starter:$p6spyVersion"
+
+		// ULID
+		implementation group: 'com.github.f4b6a3', name: 'ulid-creator', version: "$ulidVersion"
+
+		// UUID
+		implementation "com.fasterxml.uuid:java-uuid-generator:5.1.0"
+
+		/** QueryDSL Implementation **/
+		implementation "com.querydsl:querydsl-jpa:$querydslVersion:jakarta"
+		implementation "com.querydsl:querydsl-core:$querydslVersion"
+		annotationProcessor "com.querydsl:querydsl-apt:$querydslVersion:jakarta"
+		annotationProcessor "jakarta.annotation:jakarta.annotation-api:$annotationVersion"
+		annotationProcessor "jakarta.persistence:jakarta.persistence-api:$persistenceVersion"
+
+		// 공통관련 테스트 의존성
+		testImplementation 'org.springframework.boot:spring-boot-starter-test'
+		testImplementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter-test:3.0.4'
+		testImplementation 'org.springframework.security:spring-security-test'
+
+		// JUnit Jupiter API와 Engine을 테스트 의존성으로 추가
+		testImplementation 'org.junit.jupiter:junit-jupiter-api:6.0.0-M1'
+		testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:6.0.0-M1'
+
+		// Jsoup(for Html cleaner)
+		implementation group: 'org.jsoup', name: 'jsoup', version: '1.21.1'
+
+		implementation 'org.springframework.boot:spring-boot-devtools'
+		implementation 'org.apache.commons:commons-text:1.13.1'
+
+		if (project.ext.isMacOs) {
+			runtimeOnly 'io.netty:netty-resolver-dns-native-macos:4.2.2.Final:osx-aarch_64' // MacOS Silicon 라이브러리 누락 문제
+		}
+	}
+
+	// 각 서브프로젝트의 out 폴더를 삭제하는 cleanOut 태스크 등록
+	tasks.register('cleanOut', Delete) {
+		delete file("$projectDir/out")
+	}
+
+	// 서브프로젝트의 clean 태스크가 cleanOut 태스크를 의존하도록 설정
+	tasks.named('clean') {
+		dependsOn(tasks.named('cleanOut'))
+	}
+
+	// 테스트 태스크 설정
+	tasks.withType(Test) {
+		useJUnitPlatform()
+	}
+}
+
+project(':apps:todo'){
+	bootJar {
+		archiveBaseName.set('todo')
+		archiveVersion.set(version as String)
+		archiveClassifier.set('')
+	}
+	springBoot {
+		mainClass = 'com.project.todolist.TodoMain'
+	}
+}
+
+project(':apps:user'){
+	bootJar {
+		archiveBaseName.set('user')
+		archiveVersion.set(version as String)
+		archiveClassifier.set('')
+	}
+	springBoot {
+		mainClass = 'com.project.todolist.UserMain'
+	}
+}
+
+project(':apps:noti'){
+	bootJar {
+		archiveBaseName.set('noti')
+		archiveVersion.set(version as String)
+		archiveClassifier.set('')
+	}
+	springBoot {
+		mainClass = 'com.project.todolist.NotiMain'
+	}
+}

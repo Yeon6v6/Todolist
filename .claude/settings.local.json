@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gradle build)",
+      "Bash(./gradlew:*)",
+      "Bash(java:*)",
+      "Bash(echo $JAVA_HOME)",
+      "Bash(mkdir:*)",
+      "Bash(tree:*)",
+      "Bash(move:*)",
+      "Bash(move \"apps/noti/src/test/java/com/project/todo/NotiApplicationTests.java\" \"apps/noti/src/test/java/com/project/todolist/NotiApplicationTests.java\")",
+      "Bash(move \"apps/todo/src/main/java/com/project/todo/TodoMain.java\" \"apps/todo/src/main/java/com/project/todolist/TodoMain.java\")",
+      "Bash(move \"apps/todo/src/test/java/com/project/todo/TodoApplicationTests.java\" \"apps/todo/src/test/java/com/project/todolist/TodoApplicationTests.java\")",
+      "Bash(move \"apps/user/src/main/java/com/project/todo/UserMain.java\" \"apps/user/src/main/java/com/project/todolist/UserMain.java\")",
+      "Bash(move \"apps/user/src/test/java/com/project/todo/UserApplicationTests.java\" \"apps/user/src/test/java/com/project/todolist/UserApplicationTests.java\")",
+      "Bash(docker compose:*)",
+      "Bash(docker logs:*)",
+      "Bash(find:*)"
+    ],
+    "defaultMode": "acceptEdits"
+  }
+}

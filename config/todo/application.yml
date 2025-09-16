@@ -1,0 +1,101 @@
+server:
+  port: 8080
+  http:
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
+  tomcat:
+    accept-count: 20
+    max-connections: 100
+    threads:
+      max: 100
+      min-spare: 10
+    max-keep-alive-requests: 100
+    keep-alive-timeout: 60s
+    connection-timeout: 60s
+  compression:
+    enabled: true
+    mime-types: text/html,text/css,application/javascript,application/json,text/javascript
+
+spring:
+  application:
+    name: todo
+  profiles:
+    active: local
+  datasource:
+    hikari:
+      auto-commit: false
+      connection-test-query: SELECT 1
+      connection-timeout: 30000
+      driver-class-name: com.mysql.cj.jdbc.Driver
+      jdbc-url: jdbc:mysql://mysql:3306/todo?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8
+      idle-timeout: 30000
+      max-lifetime: 200000
+      maximum-pool-size: 20
+      minimum-idle: 5
+      leakDetectionThreshold: 60000
+      pool-name: TodoHikariCP
+      username: application
+      password: application
+  redis:
+    database: 0
+    host: redis-master
+    port: 6379
+    timeout: 2000ms
+    jedis:
+      pool:
+        max-active: 8
+        max-idle: 8
+        min-idle: 0
+        max-wait: -1ms
+  jpa:
+    hibernate:
+      ddl-auto: update
+      naming:
+        physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQL8Dialect
+        show_sql: false
+        format_sql: true
+    open-in-view: false
+
+kafka:
+  bootstrap-servers: kafka:9092
+  consumer:
+    group-id: todo-group
+    auto-offset-reset: earliest
+    key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+  producer:
+    key-serializer: org.apache.kafka.common.serialization.StringSerializer
+    value-serializer: org.apache.kafka.common.serialization.StringSerializer
+
+springdoc:
+  swagger-ui.path: /doc.html
+  api-docs.path: /api-docs
+
+logging:
+  level:
+    org.springframework.security: INFO
+    com.todo: DEBUG
+    
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info
+---
+spring:
+  config:
+    activate:
+      on-profile: docker
+  datasource:
+    hikari:
+      jdbc-url: jdbc:mysql://mysql:3306/todo?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8
+      username: application
+      password: application
+  redis:
+    host: redis-master
+    port: 6379
