@@ -33,7 +33,7 @@ ext {
 	persistenceVersion = '3.2.0'
 }
 
-configure(subprojects.findAll { it.name != 'apps' }) {
+configure(subprojects.findAll { it.name != 'apps' && it.name != 'core' }) {
 	version = rootProject.version
 	apply plugin: 'java'
 	apply plugin: 'org.springframework.boot'
@@ -155,6 +155,54 @@ configure(subprojects.findAll { it.name != 'apps' }) {
 	}
 }
 
+project(':apps:core'){
+	// core 모듈은 라이브러리용이므로 Spring Boot 플러그인 적용
+	apply plugin: 'java'
+	apply plugin: 'org.springframework.boot'
+	apply plugin: 'io.spring.dependency-management'
+
+	repositories {
+		mavenCentral()
+		maven { url 'https://repo.spring.io/milestone' }
+	}
+
+	bootJar.enabled = false
+	jar.enabled = true
+	// core 모듈은 테스트 제외
+	test.enabled = false
+
+	dependencies {
+		// core 모듈에 필요한 기본 의존성만 추가
+		implementation 'org.springframework.boot:spring-boot-starter'
+		implementation 'org.springframework.boot:spring-boot-starter-web'
+		implementation 'org.springframework.boot:spring-boot-autoconfigure'
+		implementation 'org.springframework.boot:spring-boot-starter-validation'
+		implementation 'org.springframework.boot:spring-boot-starter-security'
+
+		/** JWT **/
+		implementation group: 'io.jsonwebtoken', name: 'jjwt-api', version: "$jwtVersion"
+		runtimeOnly group: 'io.jsonwebtoken', name: 'jjwt-impl', version: "$jwtVersion"
+		runtimeOnly group: 'io.jsonwebtoken', name: 'jjwt-jackson', version: "$jwtVersion"
+
+		/** Apache Commons Lang **/
+		implementation 'org.apache.commons:commons-lang3:3.14.0'
+
+		/** JPA **/
+		implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+
+		/** P6Spy **/
+		implementation "com.github.gavlyukovskiy:p6spy-spring-boot-starter:$p6spyVersion"
+
+		/** Map Struct **/
+		implementation "org.mapstruct:mapstruct:$mapstructVersion"
+		annotationProcessor "org.mapstruct:mapstruct-processor:$mapstructVersion"
+		annotationProcessor "org.projectlombok:lombok-mapstruct-binding:0.2.0"
+
+		compileOnly 'org.projectlombok:lombok'
+		annotationProcessor 'org.projectlombok:lombok'
+	}
+}
+
 project(':apps:todo'){
 	bootJar {
 		archiveBaseName.set('todo')
@@ -163,6 +211,13 @@ project(':apps:todo'){
 	}
 	springBoot {
 		mainClass = 'com.project.todolist.TodoMain'
+	}
+
+	dependencies {
+		implementation project(':apps:core')
+
+		// core/libs 폴더의 JAR 파일을 직접 추가
+		implementation fileTree(dir: "${project.rootDir}/core/libs", include: ['*.jar'])
 	}
 }
 
@@ -175,6 +230,13 @@ project(':apps:user'){
 	springBoot {
 		mainClass = 'com.project.todolist.UserMain'
 	}
+
+	dependencies {
+		implementation project(':apps:core')
+
+		// core/libs 폴더의 JAR 파일을 직접 추가
+		implementation fileTree(dir: "${project.rootDir}/core/libs", include: ['*.jar'])
+	}
 }
 
 project(':apps:noti'){
@@ -185,5 +247,18 @@ project(':apps:noti'){
 	}
 	springBoot {
 		mainClass = 'com.project.todolist.NotiMain'
+	}
+
+	dependencies {
+		implementation project(':apps:core')
+
+		// 구조화된 로깅을 위한 의존성 추가
+		implementation 'net.logstash.logback:logstash-logback-encoder:8.1'
+
+		// Spring-boot Batch
+		implementation 'org.springframework.boot:spring-boot-starter-batch'
+
+		// core/libs 폴더의 JAR 파일을 직접 추가
+		implementation fileTree(dir: "${project.rootDir}/core/libs", include: ['*.jar'])
 	}
 }

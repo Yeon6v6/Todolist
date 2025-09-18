@@ -1,4 +1,5 @@
 rootProject.name = "todolist-backend"
+include 'apps:core'
 include 'apps:todo'
 include 'apps:user'
 include 'apps:noti'

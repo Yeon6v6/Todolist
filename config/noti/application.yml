@@ -72,6 +72,27 @@ kafka:
     key-serializer: org.apache.kafka.common.serialization.StringSerializer
     value-serializer: org.apache.kafka.common.serialization.StringSerializer
 
+security:
+  jwt:
+    secret: p8NrklVapBaHriTbHEuBMBUS+pB5ejiaMQskR3c+o5vy/60jHymBsFltWF0C2ws1POSjOiXiNvphiQOsdF925A==
+    valid-seconds:
+      todo:
+        access-token: 1800
+        refresh-token: 7200
+    role-name: USER
+    access-rules:
+      - pattern: "/api/auth/**"
+        roles: [ "ANONYMOUS" ]
+      - pattern: "/api/todo/**"
+        roles: [ "USER", "ADMIN" ]
+  permit-url: /,/error,/core/auth/login,/core/auth/logout,/core/auth/refreshtoken,/core/auth/dupusers,/core/auth/passwordchange,/core/auth/passwordconfig,/core/auth/otp,/core/sys/codes/LOCALE,/core/sys/defaultlocale,/core/xclick/files/**,/core/xclick/images/**,/core/sys/category,/image/icon/**,
+    /mails/rcv/extconfirm/**,/votes/question/**,/votes/result/**,/votes/myresult/**,/votes/poll,/core/tokens/**,/actuator/**,
+    /messenger/checkuser/**
+
+request-auth:
+  key: 3uyWRbWKpjameHaps1GqfGXP4ucQVWSR
+  iv: M2e1GPeZc5zJlOs1
+
 springdoc:
   swagger-ui.path: /doc.html
   api-docs.path: /api-docs
