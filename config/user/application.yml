@@ -17,7 +17,13 @@ server:
   compression:
     enabled: true
     mime-types: text/html,text/css,application/javascript,application/json,text/javascript
-
+api:
+  version: v1
+spring:
+  mvc:
+    servlet:
+      path: /api/${api.version}
+---
 spring:
   application:
     name: user
@@ -76,18 +82,16 @@ security:
   jwt:
     secret: p8NrklVapBaHriTbHEuBMBUS+pB5ejiaMQskR3c+o5vy/60jHymBsFltWF0C2ws1POSjOiXiNvphiQOsdF925A==
     valid-seconds:
-      todo:
+      todolist:
         access-token: 1800
         refresh-token: 7200
     role-name: USER
     access-rules:
-      - pattern: "/api/auth/**"
+      - pattern: "/api/${api.version}/auth/**"
         roles: [ "ANONYMOUS" ]
-      - pattern: "/api/todo/**"
+      - pattern: "/api/${api.version}/user/**"
         roles: [ "USER", "ADMIN" ]
-  permit-url: /,/error,/core/auth/login,/core/auth/logout,/core/auth/refreshtoken,/core/auth/dupusers,/core/auth/passwordchange,/core/auth/passwordconfig,/core/auth/otp,/core/sys/codes/LOCALE,/core/sys/defaultlocale,/core/xclick/files/**,/core/xclick/images/**,/core/sys/category,/image/icon/**,
-    /mails/rcv/extconfirm/**,/votes/question/**,/votes/result/**,/votes/myresult/**,/votes/poll,/core/tokens/**,/actuator/**,
-    /messenger/checkuser/**
+  permit-url: /,/error,/core/auth/**,/actuator/**,/api/${api.version}/user/register,/api/${api.version}/user/check/**
 
 request-auth:
   key: 3uyWRbWKpjameHaps1GqfGXP4ucQVWSR
