@@ -50,6 +50,7 @@ public class JwtTokenProvider {
                 .claim("device", authentication.getDevice())
                 .claim("deviceId", authentication.getDeviceId())
                 .claim("tokenType", authentication.getTokenType())
+                .claim("tokenId", authentication.getTokenId())
                 .signWith(key, Jwts.SIG.HS512)
                 .expiration(expirationDate)
                 .compact();
@@ -67,6 +68,7 @@ public class JwtTokenProvider {
                 .claim("device", authentication.getDevice())
                 .claim("deviceId", authentication.getDeviceId())
                 .claim("tokenType", authentication.getTokenType())
+                .claim("tokenId", authentication.getTokenId())
                 .signWith(key, Jwts.SIG.HS512)
                 .expiration(expirationDate)
                 .compact();
@@ -88,12 +90,12 @@ public class JwtTokenProvider {
 
     // 기존 setRefreshToken을 수정
     public void setRefreshToken(String refreshToken, String tokenType) {
-        // JWT에서 cacheId 추출
-        String cacheId = getCacheId(refreshToken);
+        // JWT에서 tokenId 추출
+        String tokenId = getTokenId(refreshToken);
 
-        if (cacheId != null) {
-            // cacheId를 쿠키 이름으로 설정
-            ResponseCookie cookie = ResponseCookie.from(cacheId, refreshToken)
+        if (tokenId != null) {
+            // tokenId를 쿠키 이름으로 설정
+            ResponseCookie cookie = ResponseCookie.from(tokenId, refreshToken)
                     .path("/")
                     .httpOnly(true)
                     .maxAge(jwtAccessProperty.getRefreshTokenTTL(tokenType))
@@ -103,21 +105,21 @@ public class JwtTokenProvider {
             HttpServletResponse response = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getResponse();
             response.addHeader("Set-Cookie", cookie.toString());
         } else {
-            // cacheId가 없으면 적절한 예외 처리
-            throw new IllegalArgumentException("Invalid token: cacheId not found");
+            // tokenId가 없으면 적절한 예외 처리
+            throw new IllegalArgumentException("Invalid token: tokenId not found");
         }
     }
 
     // 기존 getRefreshToken을 수정
     public String getRefreshToken(HttpServletRequest request) {
-        // JWT에서 cacheId 추출
-        String cacheId = getCacheIdFromRequest(request);
+        // JWT에서 tokenId 추출
+        String tokenId = getTokenIdFromRequest(request);
 
-        if (cacheId != null) {
+        if (tokenId != null) {
             // 요청에서 모든 쿠키를 검색
             for (Cookie cookie : request.getCookies()) {
-                // 쿠키 이름을 cacheId와 비교
-                if (cookie.getName().equals(cacheId)) {
+                // 쿠키 이름을 tokenId와 비교
+                if (cookie.getName().equals(tokenId)) {
                     return cookie.getValue();
                 }
             }
@@ -126,17 +128,17 @@ public class JwtTokenProvider {
     }
 
     public void removeRefreshToken(HttpServletRequest request) {
-        // JWT에서 cacheId 추출
-        String cacheId = getCacheIdFromRequest(request);
+        // JWT에서 tokenId 추출
+        String tokenId = getTokenIdFromRequest(request);
 
-        removeRefreshToken(cacheId);
+        removeRefreshToken(tokenId);
     }
 
     // 기존 removeRefreshToken을 수정
-    public void removeRefreshToken(String cacheId) {
-        if (cacheId != null) {
-            // cacheId를 쿠키 이름으로 사용하여 쿠키를 삭제
-            ResponseCookie cookie = ResponseCookie.from(cacheId, null)
+    public void removeRefreshToken(String tokenId) {
+        if (tokenId != null) {
+            // tokenId를 쿠키 이름으로 사용하여 쿠키를 삭제
+            ResponseCookie cookie = ResponseCookie.from(tokenId, null)
                     .maxAge(0)
                     .path("/")
                     .httpOnly(true)
@@ -148,8 +150,8 @@ public class JwtTokenProvider {
         }
     }
 
-    // 토큰에서 cacheId 추출
-    private String getCacheId(String token) {
+    // 토큰에서 Id 추출
+    private String getTokenId(String token) {
         if (StringUtils.isEmpty(token)) return null;
 
         try {
@@ -161,21 +163,21 @@ public class JwtTokenProvider {
             try {
                 claims = parser.parseClaimsJws(token).getBody();
             } catch (ExpiredJwtException e) {
-                log.info("JWT 만료됨, Claims 직접 추출");
+                log.info("JWT 만료 -> Claims 직접 추출");
                 claims = e.getClaims(); // 만료된 토큰에서도 Claims 가져오기
             }
 
-            return claims.get("cacheId", String.class);
+            return claims.get("tokenId", String.class);
         } catch (Exception e) {
             log.error("JWT 파싱 오류: {}", e.getMessage(), e);
             return null; // 예외 발생 시 null 반환
         }
     }
 
-    // 요청에서 cacheId를 추출하는 메서드
-    private String getCacheIdFromRequest(HttpServletRequest request) {
+    // 요청에서 tokenId를 추출하는 메서드
+    private String getTokenIdFromRequest(HttpServletRequest request) {
         String accessToken = resolveToken(request);
-        return getCacheId(accessToken); // JWT 토큰에서 cacheId 추출
+        return getTokenId(accessToken); // JWT 토큰에서 tokenId 추출
     }
 
     public Authentication getAuthentication(String token) {
@@ -217,7 +219,7 @@ public class JwtTokenProvider {
     public String resolveToken(HttpServletRequest request) {
         String bearerToken = request.getHeader(HttpHeaders.AUTHORIZATION);
 
-        // 프론트에서 토큰을 빈값으로 넘기는 케이스가 있어 length 까지 체크
+        // 프론트에서 토큰을 빈값으로 넘기는 경우 방지(length 까지 체크)
         if (StringUtils.isNotEmpty(bearerToken) && bearerToken.startsWith("Bearer") && bearerToken.length() > 7) {
             return bearerToken.substring(7);
         }
@@ -225,24 +227,12 @@ public class JwtTokenProvider {
         return null;
     }
 
-    public String getTokenRoleName() {
-        return jwtAccessProperty.getRoleName();
-    }
-
-    public boolean isUserRole() {
-        return "USER".equals(getTokenRoleName());
-    }
-
-    public boolean isAdminRole() {
-        return "ADMIN".equals(getTokenRoleName());
-    }
-
     public boolean validToken(String token) throws ExpiredJwtException {
         try {
             Jws<Claims> claimsJws = Jwts.parser().verifyWith(key).build().parseSignedClaims(token);
 
-            // 기존 토큰에 cacheId가 없을경우 재생성 필요!
-            return !StringUtils.isEmpty(claimsJws.getPayload().get("cacheId", String.class));
+            // 기존 토큰에 tokenId가 없을경우 재생성 필요!
+            return !StringUtils.isEmpty(claimsJws.getPayload().get("tokenId", String.class));
         } catch (ExpiredJwtException e) {
             // 토큰 만료시에는 별도 에러처리 필요
             throw e;

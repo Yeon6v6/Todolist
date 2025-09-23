@@ -23,7 +23,6 @@ public class AuthController {
     public String login(@Valid @RequestBody AuthUserDto.Request request) throws Exception {
         String password = request.getPassword();
         String decrypt = aesUtil.decrypt(password);
-
         request.setPassword(decrypt);
 
         return authService.login(request);

@@ -2,18 +2,14 @@ package com.project.auth.jwt;
 
 import com.project.auth.jwt.config.AccessRule;
 import com.project.auth.jwt.config.TokenConfig;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-@Getter
-@Setter
-@Component
+@Data
 @ConfigurationProperties("security.jwt")
 public class JwtAccessProperty {
     private String secret;

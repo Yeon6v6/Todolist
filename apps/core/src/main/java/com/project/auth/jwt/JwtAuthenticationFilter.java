@@ -10,6 +10,8 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
@@ -23,45 +25,59 @@ import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
+@Slf4j
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
-    private final JwtTokenProvider jwtTokenProvider;
-    private final List<String> permitUrlArr;
-    private final SecurityContextRepository securityContextRepository;
 
-    public JwtAuthenticationFilter(JwtTokenProvider jwtTokenProvider, List<String> permitUrlArr, SecurityContextRepository securityContextRepository) {
+    private final JwtTokenProvider jwtTokenProvider;
+    private final SecurityContextRepository securityContextRepository;
+    private final List<String> permitUrls;
+    private final AntPathMatcher pathMatcher = new AntPathMatcher();
+
+    public JwtAuthenticationFilter(JwtTokenProvider jwtTokenProvider, SecurityContextRepository securityContextRepository, List<String> permitUrls) {
         this.jwtTokenProvider = jwtTokenProvider;
-        this.permitUrlArr = permitUrlArr;
         this.securityContextRepository = securityContextRepository;
+        this.permitUrls = permitUrls;
     }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws IOException, ServletException {
-        String jwt = jwtTokenProvider.resolveToken(request);
+        // permit all url인 경우 필터 실행x => 바로 다음 필터로
+        String requestUri = request.getRequestURI();
+        if(permitUrls.stream().anyMatch(pattern -> pathMatcher.match(pattern, requestUri))) {
+            filterChain.doFilter(request, response);
+            return;
+        }
 
+        String jwt = jwtTokenProvider.resolveToken(request);
+        if (StringUtils.isEmpty(jwt)) {
+            // 토큰이 없는 경우 다음 필터로 진행
+            filterChain.doFilter(request, response);
+            return;
+        }
         try {
             if (jwtTokenProvider.validToken(jwt) && jwtTokenProvider.verifyTokenPair(jwt, request)) {
+                // JWT 토큰이 유효한 경우
                 Authentication authentication = jwtTokenProvider.getAuthentication(jwt);
                 SecurityContextHolder.getContext().setAuthentication(authentication);
 
+                // SecurityContext를 Repository에 저장하여 Spring Security와 연결
                 SecurityContext context = SecurityContextHolder.getContext();
                 securityContextRepository.saveContext(context, request, response);
 
-                // 확장 속성추가(request)
+                log.debug("JWT Authentication successful for user: {}", authentication.getName());
+
+                // 사용자 정보 확장 처리
                 AuthUserDto.Authentication loginAuthUser = UserUtil.getLoginAuthUser();
                 if (loginAuthUser != null) {
                     loginAuthUser.getExtendProperty().put("request", request);
                     UserUtil.buildSessionUser(loginAuthUser);
                 }
+            } else {
+                log.debug("JWT token validation failed");
             }
-
-            filterChain.doFilter(request, response);
         } catch (ExpiredJwtException e) {
-            AntPathMatcher antPathMatcher = new AntPathMatcher();
-            if (permitUrlArr.stream().anyMatch(pattern -> antPathMatcher.match(pattern, request.getRequestURI()))) {
-                filterChain.doFilter(request, response);
-                return;
-            }
-
+            log.warn("JWT token expired: {}", e.getMessage());
+            // 토큰 만료 시 401 응답 반환
             BaseResponseCode responseCode = BaseResponseCode.ACCESS_TOKEN_EXPIRED;
             BaseResponse<String> baseResponse = new BaseResponse<>(responseCode, responseCode.getMessage());
 
@@ -70,15 +86,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
             response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-            response.setStatus(401);
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
 
             try (PrintWriter writer = response.getWriter()) {
                 writer.print(jsonResponse);
                 writer.flush();
             }
-        } finally {
-            // 요청 처리 후 인증 정보 정리
-            SecurityContextHolder.clearContext();
+            // 필터 체인 중단
+            return;
+        } catch (Exception e) {
+            log.error("JWT authentication error: {}", e.getMessage());
+            // 다른 JWT 관련 오류는 로그만 남기고 계속 진행
         }
+        filterChain.doFilter(request, response);
     }
 }

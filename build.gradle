@@ -4,7 +4,12 @@ plugins {
 	id "java"
 }
 
-group = "todo"
+// 루트 프로젝트에는 Spring Boot 비적용
+configurations.all {
+	exclude group: 'org.springframework.boot'
+}
+
+group = "todolist"
 version = "0.0.1-SNAPSHOT"
 
 java {
@@ -33,7 +38,7 @@ ext {
 	persistenceVersion = '3.2.0'
 }
 
-configure(subprojects.findAll { it.name != 'apps' && it.name != 'core' }) {
+subprojects {
 	version = rootProject.version
 	apply plugin: 'java'
 	apply plugin: 'org.springframework.boot'
@@ -155,51 +160,20 @@ configure(subprojects.findAll { it.name != 'apps' && it.name != 'core' }) {
 	}
 }
 
+// apps 프로젝트는 컨테이너일 뿐이므로 Spring Boot 비활성화
+project(':apps') {
+	bootJar.enabled = false
+	jar.enabled = true
+}
+
 project(':apps:core'){
 	// core 모듈은 라이브러리용이므로 Spring Boot 플러그인 적용
-	apply plugin: 'java'
-	apply plugin: 'org.springframework.boot'
-	apply plugin: 'io.spring.dependency-management'
+	bootJar.enabled = false
+	jar.enabled = true
 
 	repositories {
 		mavenCentral()
 		maven { url 'https://repo.spring.io/milestone' }
-	}
-
-	bootJar.enabled = false
-	jar.enabled = true
-	// core 모듈은 테스트 제외
-	test.enabled = false
-
-	dependencies {
-		// core 모듈에 필요한 기본 의존성만 추가
-		implementation 'org.springframework.boot:spring-boot-starter'
-		implementation 'org.springframework.boot:spring-boot-starter-web'
-		implementation 'org.springframework.boot:spring-boot-autoconfigure'
-		implementation 'org.springframework.boot:spring-boot-starter-validation'
-		implementation 'org.springframework.boot:spring-boot-starter-security'
-
-		/** JWT **/
-		implementation group: 'io.jsonwebtoken', name: 'jjwt-api', version: "$jwtVersion"
-		runtimeOnly group: 'io.jsonwebtoken', name: 'jjwt-impl', version: "$jwtVersion"
-		runtimeOnly group: 'io.jsonwebtoken', name: 'jjwt-jackson', version: "$jwtVersion"
-
-		/** Apache Commons Lang **/
-		implementation 'org.apache.commons:commons-lang3:3.14.0'
-
-		/** JPA **/
-		implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-
-		/** P6Spy **/
-		implementation "com.github.gavlyukovskiy:p6spy-spring-boot-starter:$p6spyVersion"
-
-		/** Map Struct **/
-		implementation "org.mapstruct:mapstruct:$mapstructVersion"
-		annotationProcessor "org.mapstruct:mapstruct-processor:$mapstructVersion"
-		annotationProcessor "org.projectlombok:lombok-mapstruct-binding:0.2.0"
-
-		compileOnly 'org.projectlombok:lombok'
-		annotationProcessor 'org.projectlombok:lombok'
 	}
 }
 
@@ -210,7 +184,7 @@ project(':apps:todo'){
 		archiveClassifier.set('')
 	}
 	springBoot {
-		mainClass = 'com.project.todolist.TodoMain'
+		mainClass = 'com.project.TodoApplication'
 	}
 
 	dependencies {
@@ -228,7 +202,11 @@ project(':apps:user'){
 		archiveClassifier.set('')
 	}
 	springBoot {
-		mainClass = 'com.project.todolist.UserMain'
+		mainClass = 'com.project.UserApplication'
+	}
+
+	bootRun {
+		jvmArgs = ['-Dspring.config.location=file:' + rootProject.projectDir + '/config/user/']
 	}
 
 	dependencies {
@@ -246,7 +224,7 @@ project(':apps:noti'){
 		archiveClassifier.set('')
 	}
 	springBoot {
-		mainClass = 'com.project.todolist.NotiMain'
+		mainClass = 'com.project.NotiApplication'
 	}
 
 	dependencies {

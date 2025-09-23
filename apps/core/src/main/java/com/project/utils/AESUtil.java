@@ -32,10 +32,26 @@ public class AESUtil {
     }
 
     public String decrypt(String encryptedText) throws Exception {
-        Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
-        IvParameterSpec ivParameterSpec = new IvParameterSpec(iv);
-        cipher.init(Cipher.DECRYPT_MODE, secretKey, ivParameterSpec);
-        byte[] decryptedBytes = cipher.doFinal(Base64.getDecoder().decode(encryptedText));
+        if (encryptedText == null || encryptedText.trim().isEmpty()) {
+            throw new IllegalArgumentException("Encrypted text cannot be null or empty");
+        }
 
-        return new String(decryptedBytes, StandardCharsets.UTF_8);
+        try {
+            Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+            IvParameterSpec ivParameterSpec = new IvParameterSpec(iv);
+            cipher.init(Cipher.DECRYPT_MODE, secretKey, ivParameterSpec);
+
+            // Base64 디코딩 전에 유효성 검사
+            byte[] encryptedBytes = Base64.getDecoder().decode(encryptedText.trim());
+
+            // 암호화된 데이터가 16바이트의 배수인지 확인
+            if (encryptedBytes.length % 16 != 0) {
+                throw new IllegalArgumentException("Encrypted data length must be multiple of 16, got: " + encryptedBytes.length);
+            }
+
+            byte[] decryptedBytes = cipher.doFinal(encryptedBytes);
+            return new String(decryptedBytes, StandardCharsets.UTF_8);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid Base64 input: " + e.getMessage(), e);
+        }
     }}

@@ -33,7 +33,18 @@ public class CustomResponseBodyAdvice implements ResponseBodyAdvice<Object> {
         // 패키지 : 'com.project' package
         boolean isInSpecificPackage = returnType.getContainingClass().getPackage().getName().startsWith("com.project");
 
-        return isRestController && isInSpecificPackage;
+        // AuthController는 제외 (String 반환을 그대로 유지)
+        boolean isAuthController = returnType.getContainingClass().getSimpleName().equals("AuthController");
+
+        // 추가로 패키지 경로로도 확인
+        boolean isAuthControllerByPackage = returnType.getContainingClass().getName().contains("auth.controller.AuthController");
+
+        String className = returnType.getContainingClass().getSimpleName();
+        String methodName = returnType.getMethod().getName();
+
+        boolean shouldExclude = isAuthController || isAuthControllerByPackage;
+
+        return isRestController && isInSpecificPackage && !shouldExclude;
     }
 
     @Override
@@ -43,12 +54,23 @@ public class CustomResponseBodyAdvice implements ResponseBodyAdvice<Object> {
                                   ServerHttpRequest request,
                                   ServerHttpResponse response) {
 
+        String className = returnType.getContainingClass().getSimpleName();
+        String methodName = returnType.getMethod().getName();
+
         if (body instanceof BaseResponse || body instanceof UrlResource || body == null) {
             return body;
         }
 
         if (body instanceof String || isPrimitiveOrWrapper(body)) {
-            return new BaseResponse<>(body);
+            BaseResponse<Object> baseResponse = new BaseResponse<>(body);
+            try {
+                if (body instanceof String) {
+                    return objectMapper.writeValueAsString(baseResponse);
+                }
+                return baseResponse;
+            } catch (Exception e) {
+                throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Error processing JSON", e);
+            }
         }
 
         // Jpa Page객체 처리
