@@ -47,7 +47,7 @@ spring:
   redis:
     database: 0
     host: localhost
-    port: 6379
+    port: 16379
     timeout: 2000ms
     jedis:
       pool:
@@ -94,7 +94,7 @@ security:
     access-rules:
       - pattern: "/api/${api.version}/auth/**"
         roles: [ "ANONYMOUS" ]
-  permit-url: /,/error,/actuator/**,/api/v1/core/auth/login,/api/v1/user/register,/api/v1/user/check/**
+    permit-url: /,/error,/actuator/**,/api/${api.version}/core/auth/login,/api/${api.version}/user/register,/api/${api.version}/user/check/**
 
 request-auth:
   key: 3uyWRbWKpjameHaps1GqfGXP4ucQVWSR
