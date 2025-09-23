@@ -1,31 +1,31 @@
 package com.project.auth.config;
 
+import com.project.auth.jwt.JwtAccessProperty;
 import com.project.auth.jwt.JwtAuthenticationFilter;
 import com.project.auth.jwt.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.security.web.context.DelegatingSecurityContextRepository;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
-import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
-import org.springframework.security.web.header.writers.XXssProtectionHeaderWriter;
+import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
+import org.springframework.http.HttpMethod;
 
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -33,17 +33,13 @@ import java.util.List;
  */
 @Configuration
 @EnableWebSecurity
+@EnableConfigurationProperties(JwtAccessProperty.class)
 @RequiredArgsConstructor
 @Slf4j
 public class SecurityConfig {
 
     private final JwtTokenProvider jwtTokenProvider;
-    @Value("${security.permit-url}")
-    private List<String> permitUrls;
-
-    static {
-        SecurityContextHolder.setStrategyName(SecurityContextHolder.MODE_INHERITABLETHREADLOCAL);
-    }
+    private final JwtAccessProperty jwtAccessProperty;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -56,27 +52,39 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        final String finalSchemeAndHostAndPort = "";
+    public SecurityContextRepository securityContextRepository() {
+        return new HttpSessionSecurityContextRepository();
+    }
 
+    @Bean
+    public JwtAuthenticationFilter jwtAuthenticationFilter() {
+        String permitUrlStr = jwtAccessProperty.getPermitUrl();
+        List<String> permitUrls = permitUrlStr != null ?
+                Arrays.asList(permitUrlStr.split(",")) :
+                Arrays.asList("/error", "/actuator/**");
+
+        log.info("JWT Filter Permit URLs: {}", permitUrls);
+        return new JwtAuthenticationFilter(jwtTokenProvider, securityContextRepository(), permitUrls);
+    }
+
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         return http
-                .csrf(csrf -> csrf.disable())
-                .headers((header) ->
-                        header
-                                .frameOptions(HeadersConfigurer.FrameOptionsConfig::disable)
-                                .xssProtection(xss -> xss.headerValue(XXssProtectionHeaderWriter.HeaderValue.ENABLED_MODE_BLOCK))
-                                .contentSecurityPolicy(cps -> cps.policyDirectives("script-src 'self' " + finalSchemeAndHostAndPort + " 'unsafe-inline' 'unsafe-eval'"))
-                )
+                .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(sessionManagement ->
                         sessionManagement.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(authorize -> {
-                    // JwtAuthenticationFilter가 아닌, Spring Security가 최종적으로 접근을 허용하도록 명시
-                    permitUrls.forEach(url -> authorize.requestMatchers(url).permitAll());
-                    // 그 외 모든 요청은 인증 필요
-                    authorize.anyRequest().authenticated();
-                })
-                .addFilterBefore(corsFilter(), UsernamePasswordAuthenticationFilter.class)
-                .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider, securityContextRepository(), permitUrls), UsernamePasswordAuthenticationFilter.class)
+                .authorizeHttpRequests(authorize ->
+                        authorize
+                                .requestMatchers("/").permitAll()
+                                .requestMatchers("/error").permitAll()
+                                .requestMatchers("/actuator/**").permitAll()
+                                .requestMatchers(HttpMethod.POST, "/user/register").permitAll()
+                                .requestMatchers("/core/auth/login").permitAll()
+                                .requestMatchers("/user/check/**").permitAll()
+                                .anyRequest().authenticated()
+                )
+                .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
+                .httpBasic(httpBasic -> {})
                 .build();
     }
 
@@ -91,12 +99,5 @@ public class SecurityConfig {
 
         source.registerCorsConfiguration("/**", config);
         return new CorsFilter(source);
-    }
-
-    @Bean
-    public DelegatingSecurityContextRepository securityContextRepository() {
-        return new DelegatingSecurityContextRepository(
-                new HttpSessionSecurityContextRepository(),
-                new RequestAttributeSecurityContextRepository());
     }
 }
