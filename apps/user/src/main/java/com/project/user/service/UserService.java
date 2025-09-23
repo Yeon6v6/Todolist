@@ -1,5 +1,8 @@
 package com.project.user.service;
 
+import com.github.f4b6a3.ulid.UlidCreator;
+import com.project.global.exception.BadRequestException;
+import com.project.global.http.response.BaseResponseCode;
 import com.project.user.dto.UserDto;
 import com.project.user.entity.User;
 import com.project.user.repository.UserRepository;
@@ -8,8 +11,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -29,17 +30,18 @@ public class UserService {
 
         // 사용자 생성
         User user = User.builder()
-                .userId(String.valueOf(UUID.randomUUID()))
+                .userId(UlidCreator.getMonotonicUlid().toString())
                 .loginId(request.getLoginId())
                 .password(encodedPassword)
                 .userName(request.getUserName())
                 .email(request.getEmail())
+                .isNew(true)
                 .build();
 
         User savedUser = userRepository.save(user);
 
-        return UserDto.RegisterResponse.success(
-                savedUser.getUserId(),
+        return new UserDto.RegisterResponse(
+                savedUser.getLoginId(),
                 savedUser.getUserName(),
                 savedUser.getEmail()
         );
@@ -47,11 +49,13 @@ public class UserService {
 
     private void validateUserRegistration(UserDto.RegisterRequest request) {
         if (userRepository.existsByLoginId(request.getLoginId())) {
-            throw new IllegalArgumentException("이미 존재하는 사용자 ID입니다: " + request.getLoginId());
+            throw new BadRequestException(BaseResponseCode.DUP_LOGIN_ID,
+                "이미 존재하는 사용자 ID입니다: " + request.getLoginId());
         }
 
         if (userRepository.existsByEmail(request.getEmail())) {
-            throw new IllegalArgumentException("이미 존재하는 이메일입니다: " + request.getEmail());
+            throw new BadRequestException(BaseResponseCode.DUP_EMAIL,
+                "이미 존재하는 이메일입니다: " + request.getEmail());
         }
     }
 

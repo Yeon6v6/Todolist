@@ -15,7 +15,14 @@
       "Bash(move \"apps/user/src/test/java/com/project/todo/UserApplicationTests.java\" \"apps/user/src/test/java/com/project/todolist/UserApplicationTests.java\")",
       "Bash(docker compose:*)",
       "Bash(docker logs:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(docker restart:*)",
+      "Bash(docker port:*)",
+      "Bash(docker exec:*)",
+      "Bash(jar:*)",
+      "Bash(/dev/null)",
+      "Bash(curl:*)",
+      "Bash(python:*)"
     ],
     "defaultMode": "acceptEdits"
   }

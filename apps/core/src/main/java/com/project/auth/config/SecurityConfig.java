@@ -1,7 +1,5 @@
 package com.project.auth.config;
 
-import com.project.auth.jwt.JwtAccessProperty;
-import com.project.auth.jwt.JwtAuthenticationEntryPoint;
 import com.project.auth.jwt.JwtAuthenticationFilter;
 import com.project.auth.jwt.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
@@ -9,11 +7,15 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.context.DelegatingSecurityContextRepository;
@@ -24,7 +26,6 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -34,69 +35,48 @@ import java.util.List;
 @EnableWebSecurity
 @RequiredArgsConstructor
 @Slf4j
-public class AuthConfig {
+public class SecurityConfig {
 
     private final JwtTokenProvider jwtTokenProvider;
-    private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
-    private final JwtAccessProperty jwtAccessProperty;
-
     @Value("${security.permit-url}")
-    private String[] permitUrlArr;
-    @Value("${security.permit-dev-url}")
-    private String[] permitDevUrlArr;
-    @Value("${security.permit-swagger-url}")
-    private String[] permitSwaggerUrlArr;
-    @Value("${security.permit-resource-url}")
-    private String[] permitResourceUrlArr;
+    private List<String> permitUrls;
 
     static {
         SecurityContextHolder.setStrategyName(SecurityContextHolder.MODE_INHERITABLETHREADLOCAL);
     }
 
     @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder(8);
+    }
+
+    @Bean
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
+        return config.getAuthenticationManager();
+    }
+
+    @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        List<String> permitUrls = new ArrayList<>();
-        permitUrls.addAll(List.of(permitUrlArr)); // permitUrlArr에 있는 각 URL에 대해 인증 없이 허용
-        permitUrls.addAll(List.of(permitDevUrlArr)); // permitDevUrlArr에 있는 각 URL에 대해 인증 없이 허용
-        permitUrls.addAll(List.of(permitSwaggerUrlArr)); // permitSwaggerUrlArr에 있는 각 URL에 대해 인증 없이 허용
-        permitUrls.addAll(List.of(permitResourceUrlArr)); // 에디터관련 리소스URL에 대해 인증 없이 허용
-
-        String schemeAndHostAndPort = "";
-
-        final String finalSchemeAndHostAndPort = schemeAndHostAndPort;
+        final String finalSchemeAndHostAndPort = "";
 
         return http
+                .csrf(csrf -> csrf.disable())
                 .headers((header) ->
-                                header
-                                        .frameOptions(HeadersConfigurer.FrameOptionsConfig::disable)
-                                        .xssProtection(xss -> xss.headerValue(XXssProtectionHeaderWriter.HeaderValue.ENABLED_MODE_BLOCK)) // XSS 보안
-                                        .contentSecurityPolicy(cps -> cps.policyDirectives("script-src 'self' " + finalSchemeAndHostAndPort + " 'unsafe-inline' 'unsafe-eval'"))
+                        header
+                                .frameOptions(HeadersConfigurer.FrameOptionsConfig::disable)
+                                .xssProtection(xss -> xss.headerValue(XXssProtectionHeaderWriter.HeaderValue.ENABLED_MODE_BLOCK))
+                                .contentSecurityPolicy(cps -> cps.policyDirectives("script-src 'self' " + finalSchemeAndHostAndPort + " 'unsafe-inline' 'unsafe-eval'"))
                 )
                 .sessionManagement(sessionManagement ->
                         sessionManagement.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-
                 .authorizeHttpRequests(authorize -> {
-                    for (String url : permitUrls) {
-                        // 토큰 체크없이 바로 통과시켜줄 url
-                        authorize.requestMatchers(url).permitAll();
-                    }
-
-                    for (List<String> access : jwtAccessProperty.getAccess()) {
-                        // 특정 Role 에 따라 허용해줄 url
-                        String url = access.getFirst();
-                        String[] roles = access.subList(1, access.size()).toArray(String[]::new);
-                        authorize.requestMatchers(url).hasAnyRole(roles);
-                    }
-
-                    // 나머지 모든 요청은 무시
-                    authorize.anyRequest().denyAll();
+                    // JwtAuthenticationFilter가 아닌, Spring Security가 최종적으로 접근을 허용하도록 명시
+                    permitUrls.forEach(url -> authorize.requestMatchers(url).permitAll());
+                    // 그 외 모든 요청은 인증 필요
+                    authorize.anyRequest().authenticated();
                 })
-                .exceptionHandling(handling ->
-                        handling.authenticationEntryPoint(jwtAuthenticationEntryPoint)
-                )
-
                 .addFilterBefore(corsFilter(), UsernamePasswordAuthenticationFilter.class)
-                .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider, permitUrls, securityContextRepository()), UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider, securityContextRepository(), permitUrls), UsernamePasswordAuthenticationFilter.class)
                 .build();
     }
 
@@ -113,6 +93,7 @@ public class AuthConfig {
         return new CorsFilter(source);
     }
 
+    @Bean
     public DelegatingSecurityContextRepository securityContextRepository() {
         return new DelegatingSecurityContextRepository(
                 new HttpSessionSecurityContextRepository(),

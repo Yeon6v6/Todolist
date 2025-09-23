@@ -1,12 +1,10 @@
-package com.project.user.entity;
+package com.project.auth.entity;
 
-import com.github.f4b6a3.ulid.UlidCreator;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.domain.Persistable;
@@ -14,21 +12,23 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
 
-@Entity(name = "AppUser")
+@Entity
 @Table(name = "user")
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 @EntityListeners(AuditingEntityListener.class)
-public class User implements Persistable<String> {
+public class AuthUser implements Persistable<String> {
 
     @Id
     @Column(name = "userId", length = 50)
     private String userId;
+
     @Column(nullable = false)
     private String loginId;
-    @Column(nullable = false)
+
+    @Column(nullable = false, length = 100)
     private String password;
 
     @Column(nullable = false, length = 50)
@@ -63,8 +63,8 @@ public class User implements Persistable<String> {
 
     @PrePersist
     public void generateId() {
-        if (StringUtils.isEmpty(userId)) {
-            userId = UlidCreator.getMonotonicUlid().toString();
+        if (userId == null) {
+            userId = com.github.f4b6a3.ulid.UlidCreator.getMonotonicUlid().toString();
         }
     }
 

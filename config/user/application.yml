@@ -30,23 +30,23 @@ spring:
   profiles:
     active: local
   datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:13306/todo?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8
+    username: application
+    password: application
     hikari:
       auto-commit: false
       connection-test-query: SELECT 1
       connection-timeout: 30000
-      driver-class-name: com.mysql.cj.jdbc.Driver
-      jdbc-url: jdbc:mysql://mysql:3306/todo?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8
       idle-timeout: 30000
       max-lifetime: 200000
       maximum-pool-size: 20
       minimum-idle: 5
       leakDetectionThreshold: 60000
       pool-name: UserHikariCP
-      username: application
-      password: application
   redis:
     database: 0
-    host: redis-master
+    host: localhost
     port: 6379
     timeout: 2000ms
     jedis:
@@ -68,7 +68,7 @@ spring:
     open-in-view: false
 
 kafka:
-  bootstrap-servers: kafka:9092
+  bootstrap-servers: localhost:9092
   consumer:
     group-id: user-group
     auto-offset-reset: earliest
@@ -77,6 +77,11 @@ kafka:
   producer:
     key-serializer: org.apache.kafka.common.serialization.StringSerializer
     value-serializer: org.apache.kafka.common.serialization.StringSerializer
+
+auth:
+  password:
+    encryption:
+      enabled: false  # 개발/테스트용으로 암호화 비활성화
 
 security:
   jwt:
@@ -89,9 +94,7 @@ security:
     access-rules:
       - pattern: "/api/${api.version}/auth/**"
         roles: [ "ANONYMOUS" ]
-      - pattern: "/api/${api.version}/user/**"
-        roles: [ "USER", "ADMIN" ]
-  permit-url: /,/error,/core/auth/**,/actuator/**,/api/${api.version}/user/register,/api/${api.version}/user/check/**
+  permit-url: /,/error,/actuator/**,/api/v1/core/auth/login,/api/v1/user/register,/api/v1/user/check/**
 
 request-auth:
   key: 3uyWRbWKpjameHaps1GqfGXP4ucQVWSR
@@ -103,8 +106,8 @@ springdoc:
 
 logging:
   level:
-    org.springframework.security: INFO
-    com.user: DEBUG
+    org.springframework.security: DEBUG
+    com.project: DEBUG
     
 management:
   endpoints:
@@ -117,10 +120,13 @@ spring:
     activate:
       on-profile: docker
   datasource:
-    hikari:
-      jdbc-url: jdbc:mysql://mysql:3306/todo?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8
-      username: application
-      password: application
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://mysql:3306/todo?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8
+    username: application
+    password: application
   redis:
     host: redis-master
     port: 6379
+
+kafka:
+  bootstrap-servers: kafka:9092

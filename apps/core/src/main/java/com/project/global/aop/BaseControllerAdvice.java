@@ -42,7 +42,6 @@ public class BaseControllerAdvice {
     @ResponseBody
     public BaseResponse<?> handleBaseError(HttpServletRequest request, BaseException e) {
         request.setAttribute("exception", e); // ExceptionHandlerInterceptor 에 전달
-        log.error("Controller BaseException occurred: {}", e.getMessage(), e);
         return new BaseResponse<String>(e.getResponseCode(), e.getMessage());
     }
 
@@ -51,7 +50,6 @@ public class BaseControllerAdvice {
     @ResponseBody
     public BaseResponse<?> handleNotFoundError(HttpServletRequest request, NotFoundException e) {
         request.setAttribute("exception", e); // ExceptionHandlerInterceptor 에 전달
-        log.error("Controller NotFoundException occurred: {}", e.getMessage(), e);
         return new BaseResponse<>(e.getResponseCode(), e.getMessage());
     }
 
@@ -60,7 +58,6 @@ public class BaseControllerAdvice {
     @ResponseBody
     public BaseResponse<?> handleBadRequestError(HttpServletRequest request, BadRequestException e) {
         request.setAttribute("exception", e); // ExceptionHandlerInterceptor 에 전달
-        log.error("Controller BadRequestException occurred: {}", e.getMessage(), e);
         return new BaseResponse<>(e.getParam(), e.getResponseCode(), e.getMessage());
     }
 
@@ -68,7 +65,6 @@ public class BaseControllerAdvice {
     @ResponseStatus(HttpStatus.UNAUTHORIZED)
     @ResponseBody
     public BaseResponse<?> handleAuthenticationError(AuthenticationException e) {
-        log.error("Controller AuthenticationException occurred: {}", e.toString());
         return new BaseResponse<>(e.getParam(), e.getResponseCode(), e.getMessage());
     }
 
@@ -93,7 +89,6 @@ public class BaseControllerAdvice {
     @ResponseBody
     public BaseResponse<?> handleBadRequest(HttpServletRequest request, Exception ex) {
         request.setAttribute("exception", ex); // ExceptionHandlerInterceptor 에 전달
-        log.error("Controller Parameter exception occurred: {}", ex.getMessage(), ex);
 
         String message;
 
@@ -112,8 +107,6 @@ public class BaseControllerAdvice {
     public void handleTimeoutError(HttpServletResponse response, AsyncRequestTimeoutException e) {
         // SSE timeout exception 은 패스
         if ("text/event-stream".equals(response.getContentType())) return;
-
-        log.error("Error handling AsyncRequestTimeoutException", e);
     }
 
     @ExceptionHandler(value = {org.springframework.web.context.request.async.AsyncRequestNotUsableException.class})
